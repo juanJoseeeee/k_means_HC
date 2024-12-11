@@ -1,0 +1,100 @@
+# Importar bibliotecas necesarias
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier, export_text
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+from sklearn.feature_selection import SelectKBest, chi2
+from sklearn import tree
+
+# 1. Análisis exploratorio de los datos
+# Generar datos de ejemplo o cargar un dataset
+data = {
+    "Feature1": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    "Feature2": [10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
+    "Feature3": [5, 4, 6, 3, 7, 2, 8, 1, 9, 0],
+    "Target": [0, 1, 0, 1, 0, 1, 0, 1, 0, 1]
+}
+df = pd.DataFrame(data)
+
+# Resumen estadístico
+print("Resumen estadístico:")
+print(df.describe())
+
+# Visualización de las relaciones entre variables
+sns.pairplot(df, hue="Target")
+plt.title("Relaciones entre variables")
+plt.show()
+
+# Identificar valores atípicos usando un diagrama de caja
+plt.figure(figsize=(8, 6))
+sns.boxplot(data=df.iloc[:, :-1])
+plt.title("Análisis de valores atípicos")
+plt.show()
+
+# 2. Preprocesar los datos
+# Tratar valores faltantes (si los hay)
+df.fillna(df.median(), inplace=True)
+
+# Escalado o transformación de características (si es necesario)
+# Aquí se puede añadir escalado estándar o normalización si aplica.
+
+# 3. Seleccionar las características más relevantes
+X = df.drop("Target", axis=1)  # Variables independientes
+y = df["Target"]  # Variable dependiente
+
+# Usar SelectKBest para seleccionar las características más importantes
+selector = SelectKBest(score_func=chi2, k=2)
+X_selected = selector.fit_transform(X, y)
+selected_features = X.columns[selector.get_support()]
+print(f"Características seleccionadas: {list(selected_features)}")
+
+# 4. Dividir el dataset en Train y Test
+X_train, X_test, y_train, y_test = train_test_split(X_selected, y, test_size=0.3, random_state=42)
+
+# 5. Entrenar el modelo configurando hiperparámetros
+clf = DecisionTreeClassifier(
+    criterion="gini",  # Cambiar a "entropy" si deseas calcular la ganancia de información
+    max_depth=3,
+    random_state=42
+)
+clf.fit(X_train, y_train)
+
+# 6. Evaluar el modelo
+y_pred = clf.predict(X_test)
+print("Métricas de desempeño del modelo:")
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print("\nClassification Report:\n", classification_report(y_test, y_pred))
+
+# Matriz de confusión
+conf_matrix = confusion_matrix(y_test, y_pred)
+sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues", xticklabels=["Clase 0", "Clase 1"], yticklabels=["Clase 0", "Clase 1"])
+plt.title("Matriz de Confusión")
+plt.xlabel("Predicción")
+plt.ylabel("Real")
+plt.show()
+
+# 7. Visualización del modelo y gráficos
+# Visualizar el árbol de decisión
+plt.figure(figsize=(10, 8))
+tree.plot_tree(clf, feature_names=selected_features, class_names=["Clase 0", "Clase 1"], filled=True)
+plt.title("Árbol de Decisión")
+plt.show()
+
+# Exportar las reglas del árbol en formato texto
+tree_rules = export_text(clf, feature_names=list(selected_features))
+print("\nReglas del Árbol de Decisión:\n")
+print(tree_rules)
+
+# Guardar las reglas en un archivo .txt
+with open("decision_tree_rules.txt", "w") as f:
+    f.write(tree_rules)
+
+# Gráfica de importancia de características
+feature_importances = pd.Series(clf.feature_importances_, index=selected_features)
+feature_importances.sort_values().plot(kind="barh", title="Importancia de las características")
+plt.xlabel("Importancia")
+plt.ylabel("Características")
+plt.show()
